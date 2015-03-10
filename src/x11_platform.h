@@ -37,20 +37,24 @@
 #include <X11/Xatom.h>
 #include <X11/Xcursor/Xcursor.h>
 
-// The Xf86VidMode extension provides fallback gamma control
-#include <X11/extensions/xf86vmode.h>
-
 // The XRandR extension provides mode setting and gamma control
 #include <X11/extensions/Xrandr.h>
-
-// The XInput2 extension provides improved input events
-#include <X11/extensions/XInput2.h>
 
 // The Xkb extension provides improved keyboard support
 #include <X11/XKBlib.h>
 
 // The Xinerama extension provides legacy monitor indices
 #include <X11/extensions/Xinerama.h>
+
+#if defined(_GLFW_HAS_XINPUT)
+ // The XInput2 extension provides improved input events
+ #include <X11/extensions/XInput2.h>
+#endif
+
+#if defined(_GLFW_HAS_XF86VM)
+ // The Xf86VidMode extension provides fallback gamma control
+ #include <X11/extensions/xf86vmode.h>
+#endif
 
 #include "posix_tls.h"
 
@@ -71,6 +75,7 @@
 #include "xkb_unicode.h"
 
 #define _GLFW_PLATFORM_WINDOW_STATE         _GLFWwindowX11  x11
+#define _GLFW_PLATFORM_ALIEN_WINDOW_STATE   _GLFWalienWindowX11 x11
 #define _GLFW_PLATFORM_LIBRARY_WINDOW_STATE _GLFWlibraryX11 x11
 #define _GLFW_PLATFORM_MONITOR_STATE        _GLFWmonitorX11 x11
 #define _GLFW_PLATFORM_CURSOR_STATE         _GLFWcursorX11  x11
@@ -96,6 +101,19 @@ typedef struct _GLFWwindowX11
     int             warpPosX, warpPosY;
 
 } _GLFWwindowX11;
+
+// X11-specific per-window alien data
+//
+typedef struct _GLFWalienWindowX11
+{
+    // Platform specific window resources
+    Colormap        colormap;          // Window colormap
+    Window          handle;            // Window handle
+    int             screen;
+    Display*        display;
+    XVisualInfo*    visual;
+    
+} _GLFWalienWindowX11;
 
 
 // X11-specific global data
@@ -156,17 +174,11 @@ typedef struct _GLFWlibraryX11
     Atom            CLIPBOARD;
     Atom            CLIPBOARD_MANAGER;
     Atom            SAVE_TARGETS;
-    Atom            _NULL;
+    Atom            NULL_;
     Atom            UTF8_STRING;
     Atom            COMPOUND_STRING;
     Atom            ATOM_PAIR;
     Atom            GLFW_SELECTION;
-
-    struct {
-        GLboolean   available;
-        int         eventBase;
-        int         errorBase;
-    } vidmode;
 
     struct {
         GLboolean   available;
@@ -189,15 +201,6 @@ typedef struct _GLFWlibraryX11
     } xkb;
 
     struct {
-        GLboolean   available;
-        int         majorOpcode;
-        int         eventBase;
-        int         errorBase;
-        int         versionMajor;
-        int         versionMinor;
-    } xi;
-
-    struct {
         int         count;
         int         timeout;
         int         interval;
@@ -214,6 +217,25 @@ typedef struct _GLFWlibraryX11
         int         versionMajor;
         int         versionMinor;
     } xinerama;
+
+#if defined(_GLFW_HAS_XINPUT)
+    struct {
+        GLboolean   available;
+        int         majorOpcode;
+        int         eventBase;
+        int         errorBase;
+        int         versionMajor;
+        int         versionMinor;
+    } xi;
+#endif /*_GLFW_HAS_XINPUT*/
+
+#if defined(_GLFW_HAS_XF86VM)
+    struct {
+        GLboolean   available;
+        int         eventBase;
+        int         errorBase;
+    } vidmode;
+#endif /*_GLFW_HAS_XF86VM*/
 
 } _GLFWlibraryX11;
 

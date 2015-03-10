@@ -28,6 +28,7 @@
 #include "internal.h"
 
 #include <X11/cursorfont.h>
+#include <X11/Xmd.h>
 
 #include <sys/select.h>
 
@@ -183,11 +184,12 @@ static void changeWindowState(_GLFWwindow* window, Atom state, int action)
 }
 
 // Splits and translates a text/uri-list into separate file paths
+// NOTE: This function destroys the provided string
 //
 static char** parseUriList(char* text, int* count)
 {
     const char* prefix = "file://";
-    char** names = NULL;
+    char** paths = NULL;
     char* line;
 
     *count = 0;
@@ -196,7 +198,7 @@ static char** parseUriList(char* text, int* count)
     {
         text = NULL;
 
-        if (*line == '#')
+        if (line[0] == '#')
             continue;
 
         if (strncmp(line, prefix, strlen(prefix)) == 0)
@@ -204,27 +206,27 @@ static char** parseUriList(char* text, int* count)
 
         (*count)++;
 
-        char* name = calloc(strlen(line) + 1, 1);
-        names = realloc(names, *count * sizeof(char*));
-        names[*count - 1] = name;
+        char* path = calloc(strlen(line) + 1, 1);
+        paths = realloc(paths, *count * sizeof(char*));
+        paths[*count - 1] = path;
 
         while (*line)
         {
             if (line[0] == '%' && line[1] && line[2])
             {
                 const char digits[3] = { line[1], line[2], '\0' };
-                *name = strtol(digits, NULL, 16);
+                *path = strtol(digits, NULL, 16);
                 line += 2;
             }
             else
-                *name = *line;
+                *path = *line;
 
-            name++;
+            path++;
             line++;
         }
     }
 
-    return names;
+    return paths;
 }
 
 // Create the X11 window (and its colormap)
@@ -411,6 +413,7 @@ static GLboolean createWindow(_GLFWwindow* window,
         XFree(hint);
     }
 
+#if defined(_GLFW_HAS_XINPUT)
     if (_glfw.x11.xi.available)
     {
         // Select for XInput2 events
@@ -425,6 +428,7 @@ static GLboolean createWindow(_GLFWwindow* window,
 
         XISelectEvents(_glfw.x11.display, window->x11.handle, &eventmask, 1);
     }
+#endif /*_GLFW_HAS_XINPUT*/
 
     if (_glfw.x11.XdndAware)
     {
@@ -629,7 +633,7 @@ static Atom writeTargetToProperty(const XSelectionRequestEvent* request)
         XChangeProperty(_glfw.x11.display,
                         request->requestor,
                         request->property,
-                        _glfw.x11._NULL,
+                        _glfw.x11.NULL_,
                         32,
                         PropModeReplace,
                         NULL,
@@ -1007,7 +1011,7 @@ static void processEvent(XEvent *event)
                 // Additional buttons after 7 are treated as regular buttons
                 // We subtract 4 to fill the gap left by scroll input above
                 _glfwInputMouseClick(window,
-                                     event->xbutton.button - 4,
+                                     event->xbutton.button - Button1 - 4,
                                      GLFW_PRESS,
                                      mods);
             }
@@ -1054,6 +1058,11 @@ static void processEvent(XEvent *event)
 
         case EnterNotify:
         {
+            // HACK: This is a workaround for WMs (KWM, Fluxbox) that otherwise
+            //       ignore the defined cursor for hidden cursor mode
+            if (window->cursorMode == GLFW_CURSOR_HIDDEN)
+                hideCursor(window);
+
             _glfwInputCursorEnter(window, GL_TRUE);
             break;
         }
@@ -1216,13 +1225,13 @@ static void processEvent(XEvent *event)
                 if (result)
                 {
                     int i, count;
-                    char** names = parseUriList(data, &count);
+                    char** paths = parseUriList(data, &count);
 
-                    _glfwInputDrop(window, count, (const char**) names);
+                    _glfwInputDrop(window, count, (const char**) paths);
 
                     for (i = 0;  i < count;  i++)
-                        free(names[i]);
-                    free(names);
+                        free(paths[i]);
+                    free(paths);
                 }
 
                 XFree(data);
@@ -1309,6 +1318,7 @@ static void processEvent(XEvent *event)
         case DestroyNotify:
             return;
 
+#if defined(_GLFW_HAS_XINPUT)
         case GenericEvent:
         {
             if (event->xcookie.extension == _glfw.x11.xi.majorOpcode &&
@@ -1354,6 +1364,7 @@ static void processEvent(XEvent *event)
             XFreeEventData(_glfw.x11.display, &event->xcookie);
             break;
         }
+#endif /*_GLFW_HAS_XINPUT*/
 
         default:
         {
@@ -1432,6 +1443,23 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
     return GL_TRUE;
 }
 
+int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
+                               _GLFWalienWindow* alienWindow,
+                               const _GLFWwndconfig* wndconfig,
+                               const _GLFWfbconfig* fbconfig)
+{
+    // just copy color map and window handle
+    if (!_glfwPlatformCreateWindow(window, wndconfig, fbconfig))
+    {
+        return GL_FALSE;
+    }
+
+    // simply reparent and we should be fine!
+    XReparentWindow(_glfw.x11.display, window->x11.handle, alienWindow->x11.handle, 0, 0);
+    XResizeWindow(_glfw.x11.display, window->x11.handle, alienWindow->width, alienWindow->height);
+    return GL_TRUE;
+}
+
 void _glfwPlatformDestroyWindow(_GLFWwindow* window)
 {
     if (window->monitor)
@@ -1447,8 +1475,8 @@ void _glfwPlatformDestroyWindow(_GLFWwindow* window)
 
     if (window->x11.handle)
     {
-        if (window->x11.handle ==
-            XGetSelectionOwner(_glfw.x11.display, _glfw.x11.CLIPBOARD))
+        if (XGetSelectionOwner(_glfw.x11.display, _glfw.x11.CLIPBOARD) ==
+            window->x11.handle)
         {
             pushSelectionToManager(window);
         }
@@ -1747,7 +1775,7 @@ void _glfwPlatformPostEmptyEvent(void)
     event.type = ClientMessage;
     event.xclient.window = window->x11.handle;
     event.xclient.format = 32; // Data is 32-bit longs
-    event.xclient.message_type = _glfw.x11._NULL;
+    event.xclient.message_type = _glfw.x11.NULL_;
 
     XSendEvent(_glfw.x11.display, window->x11.handle, False, 0, &event);
     XFlush(_glfw.x11.display);

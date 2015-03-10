@@ -265,6 +265,130 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
     return (GLFWwindow*) window;
 }
 
+GLFWwindow* glfwCreateWindowFromAlien(void* data)
+{
+	_GLFWalienWindow* alienWindow = (_GLFWalienWindow*)data;
+
+	_GLFWfbconfig fbconfig;
+	_GLFWctxconfig ctxconfig;
+	_GLFWwndconfig wndconfig;
+	_GLFWwindow* window;
+	_GLFWwindow* previous;
+
+	_GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+
+	if (alienWindow->width <= 0 || alienWindow->height <= 0)
+	{
+		_glfwInputError(GLFW_INVALID_VALUE, "Invalid window size");
+		return NULL;
+	}
+
+	// Set up desired framebuffer config
+	fbconfig.redBits		= _glfw.hints.redBits;
+	fbconfig.greenBits		= _glfw.hints.greenBits;
+	fbconfig.blueBits		= _glfw.hints.blueBits;
+	fbconfig.alphaBits		= _glfw.hints.alphaBits;
+	fbconfig.depthBits		= _glfw.hints.depthBits;
+	fbconfig.stencilBits	= _glfw.hints.stencilBits;
+	fbconfig.accumRedBits	= _glfw.hints.accumRedBits;
+	fbconfig.accumGreenBits = _glfw.hints.accumGreenBits;
+	fbconfig.accumBlueBits	= _glfw.hints.accumBlueBits;
+	fbconfig.accumAlphaBits = _glfw.hints.accumAlphaBits;
+	fbconfig.auxBuffers		= _glfw.hints.auxBuffers;
+	fbconfig.stereo			= _glfw.hints.stereo ? GL_TRUE : GL_FALSE;
+	fbconfig.samples		= _glfw.hints.samples;
+	fbconfig.sRGB			= _glfw.hints.sRGB;
+	fbconfig.doublebuffer	= _glfw.hints.doublebuffer ? GL_TRUE : GL_FALSE;
+
+	// Set up desired window config
+	wndconfig.width			= alienWindow->width;
+	wndconfig.height		= alienWindow->height;
+	wndconfig.title			= "";
+	wndconfig.resizable		= GL_TRUE;
+	wndconfig.visible		= _glfw.hints.visible ? GL_TRUE : GL_FALSE;
+	wndconfig.decorated		= GL_FALSE;
+	wndconfig.monitor		= NULL;
+
+	// Set up desired context config
+	ctxconfig.api			= _glfw.hints.api;
+	ctxconfig.major			= _glfw.hints.major;
+	ctxconfig.minor			= _glfw.hints.minor;
+	ctxconfig.forward		= _glfw.hints.forward ? GL_TRUE : GL_FALSE;
+	ctxconfig.debug			= _glfw.hints.debug ? GL_TRUE : GL_FALSE;
+	ctxconfig.profile		= _glfw.hints.profile;
+	ctxconfig.robustness	= _glfw.hints.robustness;
+	ctxconfig.release		= _glfw.hints.release;
+
+	// Check the OpenGL bits of the window config
+	if (!_glfwIsValidContextConfig(&ctxconfig))
+		return NULL;
+
+	window = calloc(1, sizeof(_GLFWwindow));
+	window->next = _glfw.windowListHead;
+	_glfw.windowListHead = window;
+
+	if (wndconfig.monitor)
+	{
+		wndconfig.resizable = GL_TRUE;
+		wndconfig.visible = GL_TRUE;
+
+		// Set up desired video mode
+		window->videoMode.width			= alienWindow->width;
+		window->videoMode.height		= alienWindow->height;
+		window->videoMode.redBits		= _glfw.hints.redBits;
+		window->videoMode.greenBits		= _glfw.hints.greenBits;
+		window->videoMode.blueBits		= _glfw.hints.blueBits;
+		window->videoMode.refreshRate	= _glfw.hints.refreshRate;
+	}
+
+	window->monitor = wndconfig.monitor;
+	window->resizable = wndconfig.resizable;
+	window->decorated = wndconfig.decorated;
+	window->cursorMode = GLFW_CURSOR_NORMAL;
+
+	// Save the currently current context so it can be restored later
+	previous = (_GLFWwindow*)glfwGetCurrentContext();
+
+	// setup alien window, the only thing we do different from the original function
+	if (!_glfwPlatformCreateWindowFromAlien(window, alienWindow, &wndconfig, &ctxconfig, &fbconfig))
+	{
+		glfwDestroyWindow((GLFWwindow*)window);
+		glfwMakeContextCurrent((GLFWwindow*)previous);
+		return NULL;
+	}
+
+	glfwMakeContextCurrent((GLFWwindow*)window);
+
+	// Retrieve the actual (as opposed to requested) context attributes
+	if (!_glfwRefreshContextAttribs(&ctxconfig))
+	{
+		glfwDestroyWindow((GLFWwindow*)window);
+		glfwMakeContextCurrent((GLFWwindow*)previous);
+		return NULL;
+	}
+
+	// Verify the context against the requested parameters
+	if (!_glfwIsValidContext(&ctxconfig))
+	{
+		glfwDestroyWindow((GLFWwindow*)window);
+		glfwMakeContextCurrent((GLFWwindow*)previous);
+		return NULL;
+	}
+
+	// Clearing the front buffer to black to avoid garbage pixels left over
+	// from previous uses of our bit of VRAM
+	glClear(GL_COLOR_BUFFER_BIT);
+	_glfwPlatformSwapBuffers(window);
+
+	// Restore the previously current context (or NULL)
+	glfwMakeContextCurrent((GLFWwindow*)previous);
+
+	if (wndconfig.monitor == NULL && wndconfig.visible)
+		glfwShowWindow((GLFWwindow*)window);
+
+	return (GLFWwindow*)window;
+}
+
 void glfwDefaultWindowHints(void)
 {
     _GLFW_REQUIRE_INIT();

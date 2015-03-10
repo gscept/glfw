@@ -68,28 +68,17 @@ extern "C" {
 
 
 /*************************************************************************
- * Global definitions
+ * Compiler- and platform-specific preprocessor work
  *************************************************************************/
 
-/* ------------------- BEGIN SYSTEM/COMPILER SPECIFIC -------------------- */
-
-/* Please report any problems that you find with your compiler, which may
- * be solved in this section! There are several compilers that I have not
- * been able to test this file with yet.
- *
- * First: If we are we on Windows, we want a single define for it (_WIN32)
- * (Note: For Cygwin the compiler flag -mwin32 should be used, but to
- * make sure that things run smoothly for Cygwin users, we add __CYGWIN__
- * to the list of "valid Win32 identifiers", which removes the need for
- * -mwin32)
+/* If we are we on Windows, we want a single define for it.
  */
-#if !defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__CYGWIN__))
+#if !defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
  #define _WIN32
 #endif /* _WIN32 */
 
-/* In order for extension support to be portable, we need to define an
- * OpenGL function call method. We use the keyword APIENTRY, which is
- * defined for Win32. (Note: Windows also needs this for <GL/gl.h>)
+/* It is customary to use APIENTRY for OpenGL function pointer declarations on
+ * all platforms.  Additionally, the Windows OpenGL header needs APIENTRY.
  */
 #ifndef APIENTRY
  #ifdef _WIN32
@@ -99,44 +88,23 @@ extern "C" {
  #endif
 #endif /* APIENTRY */
 
-/* The following three defines are here solely to make some Windows-based
- * <GL/gl.h> files happy. Theoretically we could include <windows.h>, but
- * it has the major drawback of severely polluting our namespace.
+/* Some Windows OpenGL headers need this.
  */
-
-/* Under Windows, we need WINGDIAPI defined */
 #if !defined(WINGDIAPI) && defined(_WIN32)
- #if defined(_MSC_VER) || defined(__BORLANDC__) || defined(__POCC__)
-  /* Microsoft Visual C++, Borland C++ Builder and Pelles C */
-  #define WINGDIAPI __declspec(dllimport)
- #elif defined(__LCC__)
-  /* LCC-Win32 */
-  #define WINGDIAPI __stdcall
- #else
-  /* Others (e.g. MinGW, Cygwin) */
-  #define WINGDIAPI extern
- #endif
+ #define WINGDIAPI __declspec(dllimport)
  #define GLFW_WINGDIAPI_DEFINED
 #endif /* WINGDIAPI */
 
-/* Some <GL/glu.h> files also need CALLBACK defined */
+/* Some Windows GLU headers need this.
+ */
 #if !defined(CALLBACK) && defined(_WIN32)
- #if defined(_MSC_VER)
-  /* Microsoft Visual C++ */
-  #if (defined(_M_MRX000) || defined(_M_IX86) || defined(_M_ALPHA) || defined(_M_PPC)) && !defined(MIDL_PASS)
-   #define CALLBACK __stdcall
-  #else
-   #define CALLBACK
-  #endif
- #else
-  /* Other Windows compilers */
-  #define CALLBACK __stdcall
- #endif
+ #define CALLBACK __stdcall
  #define GLFW_CALLBACK_DEFINED
 #endif /* CALLBACK */
 
-/* Most GL/glu.h variants on Windows need wchar_t
- * OpenGL/gl.h blocks the definition of ptrdiff_t by glext.h on OS X */
+/* Most Windows GLU headers need wchar_t.
+ * The OS X OpenGL header blocks the definition of ptrdiff_t by glext.h.
+ */
 #if !defined(GLFW_INCLUDE_NONE)
  #include <stddef.h>
 #endif
@@ -208,11 +176,7 @@ extern "C" {
  #define GLFWAPI __declspec(dllexport)
 #elif defined(_WIN32) && defined(GLFW_DLL)
  /* We are calling GLFW as a Win32 DLL */
- #if defined(__LCC__)
-  #define GLFWAPI extern
- #else
-  #define GLFWAPI __declspec(dllimport)
- #endif
+ #define GLFWAPI __declspec(dllimport)
 #elif defined(__GNUC__) && defined(_GLFW_BUILD_DLL)
  /* We are building GLFW as a shared / dynamic library */
  #define GLFWAPI __attribute__((visibility("default")))
@@ -220,8 +184,6 @@ extern "C" {
  /* We are building or calling GLFW as a static library */
  #define GLFWAPI
 #endif
-
-/* -------------------- END SYSTEM/COMPILER SPECIFIC --------------------- */
 
 
 /*************************************************************************
@@ -249,7 +211,7 @@ extern "C" {
  *  API changes.
  *  @ingroup init
  */
-#define GLFW_VERSION_REVISION       0
+#define GLFW_VERSION_REVISION       1
 /*! @} */
 
 /*! @name Key and button actions
@@ -756,6 +718,14 @@ typedef struct GLFWmonitor GLFWmonitor;
  */
 typedef struct GLFWwindow GLFWwindow;
 
+/*! @brief Opaque alien window.
+*
+*  Opaque window object where the window is owned by an alien system.
+*
+*  @ingroup window
+*/
+typedef struct GLFWalienWindow GLFWalienWindow;
+
 /*! @brief Opaque cursor object.
  *
  *  Opaque cursor object.
@@ -988,7 +958,7 @@ typedef void (* GLFWcharmodsfun)(GLFWwindow*,unsigned int,int);
  *
  *  @param[in] window The window that received the event.
  *  @param[in] count The number of dropped files.
- *  @param[in] names The UTF-8 encoded path names of the dropped files.
+ *  @param[in] paths The UTF-8 encoded file and/or directory path names.
  *
  *  @sa glfwSetDropCallback
  *
@@ -1696,6 +1666,21 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, G
  */
 GLFWAPI void glfwDestroyWindow(GLFWwindow* window);
 
+/*! @brief Creates a GLFW window using an alien window
+*
+*	This is basically the same as glfwCreateWindow, but it will accept an OS-specific
+*	window handle as an argument, and will create a GLFW window from it.
+*	This allows GLFW to create and manage a window created by another window handler.
+*
+*	@param[in] Opaque OS-specific window handle.
+*
+*	@remarks This function must be called from the thread in which the window is created
+*
+*	@ingroup window
+*/
+
+GLFWAPI GLFWwindow* glfwCreateWindowFromAlien(void* window);
+
 /*! @brief Checks the close flag of the specified window.
  *
  *  This function returns the value of the close flag of the specified window.
@@ -1712,6 +1697,7 @@ GLFWAPI void glfwDestroyWindow(GLFWwindow* window);
  *
  *  @ingroup window
  */
+
 GLFWAPI int glfwWindowShouldClose(GLFWwindow* window);
 
 /*! @brief Sets the close flag of the specified window.
@@ -3160,7 +3146,7 @@ GLFWAPI double glfwGetTime(void);
 /*! @brief Sets the GLFW timer.
  *
  *  This function sets the value of the GLFW timer.  It then continues to count
- *  up from that value.
+ *  up from that value.  The value must be a positive finite number.
  *
  *  @param[in] time The new value, in seconds.
  *
@@ -3267,14 +3253,14 @@ GLFWAPI void glfwSwapBuffers(GLFWwindow* window);
  *  @param[in] interval The minimum number of screen updates to wait for
  *  until the buffers are swapped by @ref glfwSwapBuffers.
  *
- *  @note This function is not called during window creation, leaving the swap
- *  interval set to whatever is the default on that platform.  This is done
+ *  @remarks This function is not called during context creation, leaving the
+ *  swap interval set to whatever is the default on that platform.  This is done
  *  because some swap interval extensions used by GLFW do not allow the swap
  *  interval to be reset to zero once it has been set to a non-zero value.
  *
- *  @note Some GPU drivers do not honor the requested swap interval, either
- *  because of user settings that override the request or due to bugs in the
- *  driver.
+ *  @remarks Some GPU drivers do not honor the requested swap interval, either
+ *  because of a user setting that overrides the application's request or due to
+ *  bugs in the driver.
  *
  *  @par Thread Safety
  *  This function may be called from any thread.
@@ -3291,9 +3277,9 @@ GLFWAPI void glfwSwapInterval(int interval);
 /*! @brief Returns whether the specified extension is available.
  *
  *  This function returns whether the specified
- *  [API extension](@ref context_glext) is supported by the current OpenGL or
- *  OpenGL ES context.  It searches both for OpenGL and OpenGL ES extension and
- *  platform-specific context creation API extensions.
+ *  [client API extension](@ref context_glext) is supported by the current
+ *  OpenGL or OpenGL ES context.  It searches both for OpenGL and OpenGL ES
+ *  extension and platform-specific context creation API extensions.
  *
  *  A context must be current on the calling thread.  Calling this function
  *  without a current context will cause a @ref GLFW_NO_CURRENT_CONTEXT error.
@@ -3322,7 +3308,7 @@ GLFWAPI int glfwExtensionSupported(const char* extension);
  *  context.
  *
  *  This function returns the address of the specified
- *  [client API or extension function](@ref context_glext), if it is supported
+ *  [core or extension function](@ref context_glext), if it is supported
  *  by the current context.
  *
  *  A context must be current on the calling thread.  Calling this function
@@ -3332,8 +3318,12 @@ GLFWAPI int glfwExtensionSupported(const char* extension);
  *  @return The address of the function, or `NULL` if the function is
  *  unavailable or an [error](@ref error_handling) occurred.
  *
- *  @note The addresses of a given function is not guaranteed to be the same
+ *  @remarks The addresses of a given function is not guaranteed to be the same
  *  between contexts.
+ *
+ *  @remarks This function may return a non-`NULL` address despite the
+ *  associated version or extension not being available.  Always check the
+ *  context version or extension string presence first.
  *
  *  @par Pointer Lifetime
  *  The returned function pointer is valid until the context is destroyed or the

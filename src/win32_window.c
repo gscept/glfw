@@ -615,7 +615,7 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
             int i;
 
             const int count = DragQueryFileW(hDrop, 0xffffffff, NULL, 0);
-            char** names = calloc(count, sizeof(char*));
+            char** paths = calloc(count, sizeof(char*));
 
             // Move the mouse to the position of the drop
             DragQueryPoint(hDrop, &pt);
@@ -627,16 +627,16 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
                 WCHAR* buffer = calloc(length + 1, sizeof(WCHAR));
 
                 DragQueryFileW(hDrop, i, buffer, length + 1);
-                names[i] = _glfwCreateUTF8FromWideString(buffer);
+                paths[i] = _glfwCreateUTF8FromWideString(buffer);
 
                 free(buffer);
             }
 
-            _glfwInputDrop(window, count, (const char**) names);
+            _glfwInputDrop(window, count, (const char**) paths);
 
             for (i = 0;  i < count;  i++)
-                free(names[i]);
-            free(names);
+                free(paths[i]);
+            free(paths);
 
             DragFinish(hDrop);
             return 0;
@@ -814,12 +814,12 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
                               const _GLFWctxconfig* ctxconfig,
                               const _GLFWfbconfig* fbconfig)
 {
-    int status;
+	int status;
 
     if (!createWindow(window, wndconfig, ctxconfig, fbconfig))
         return GL_FALSE;
 
-    status = _glfwAnalyzeContext(window, ctxconfig, fbconfig);
+	status = _glfwAnalyzeContext(window, ctxconfig, fbconfig);
 
     if (status == _GLFW_RECREATION_IMPOSSIBLE)
         return GL_FALSE;
@@ -871,6 +871,24 @@ void _glfwPlatformDestroyWindow(_GLFWwindow* window)
         leaveFullscreenMode(window);
 
     destroyWindow(window);
+}
+
+int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
+	_GLFWalienWindow* alienWindow,
+	const _GLFWwndconfig* wndconfig,
+	const _GLFWctxconfig* ctxconfig,
+	const _GLFWfbconfig* fbconfig)
+{
+	// just copy color map and window handle
+	if (!_glfwPlatformCreateWindow(window, wndconfig, ctxconfig, fbconfig))
+	{
+		return GL_FALSE;
+	}
+
+	// just copy window handle
+	SetParent(window->win32.handle, alienWindow->win32.hwnd);
+	MoveWindow(window->win32.handle, 0, 0, alienWindow->width, alienWindow->height, FALSE);
+	return GL_TRUE;
 }
 
 void _glfwPlatformSetWindowTitle(_GLFWwindow* window, const char* title)
