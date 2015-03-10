@@ -722,6 +722,8 @@ typedef struct GLFWwindow GLFWwindow;
 *
 *  Opaque window object where the window is owned by an alien system.
 *
+*  Added 3/10/2015 by Gustav Sterbrant
+*
 *  @ingroup window
 */
 typedef struct GLFWalienWindow GLFWalienWindow;
@@ -1667,6 +1669,8 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, G
 GLFWAPI void glfwDestroyWindow(GLFWwindow* window);
 
 /*! @brief Creates a GLFW window using an alien window
+*
+*   Added 3/10/2015 by Gustav Sterbrant
 *
 *	This is basically the same as glfwCreateWindow, but it will accept an OS-specific
 *	window handle as an argument, and will create a GLFW window from it.

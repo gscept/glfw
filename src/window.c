@@ -185,15 +185,18 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
         wndconfig.resizable = GL_TRUE;
         wndconfig.visible   = GL_TRUE;
         wndconfig.focused   = GL_TRUE;
-
-        // Set up desired video mode
-        window->videoMode.width       = width;
-        window->videoMode.height      = height;
-        window->videoMode.redBits     = _glfw.hints.redBits;
-        window->videoMode.greenBits   = _glfw.hints.greenBits;
-        window->videoMode.blueBits    = _glfw.hints.blueBits;
-        window->videoMode.refreshRate = _glfw.hints.refreshRate;
     }
+
+	// changed 3/10/2015 by Gustav Sterbrant
+	// note: video mode was only set if we had a monitor, so if we set our color bits and then turn on fullscreen
+	// it will select an automatic video mode instead of the one we want using the hints
+	// Set up desired video mode, this might be used if we are going to switch to monitors later on
+	window->videoMode.width = width;
+	window->videoMode.height = height;
+	window->videoMode.redBits = _glfw.hints.redBits;
+	window->videoMode.greenBits = _glfw.hints.greenBits;
+	window->videoMode.blueBits = _glfw.hints.blueBits;
+	window->videoMode.refreshRate = _glfw.hints.refreshRate;
 
     // Transfer window hints that are persistent settings and not
     // just initial states
@@ -265,6 +268,8 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
     return (GLFWwindow*) window;
 }
 
+// added 3/10/2015 by Gustav Sterbrant
+// allows us to create a GLFW window from another window system
 GLFWwindow* glfwCreateWindowFromAlien(void* data)
 {
 	_GLFWalienWindow* alienWindow = (_GLFWalienWindow*)data;
@@ -318,6 +323,7 @@ GLFWwindow* glfwCreateWindowFromAlien(void* data)
 	ctxconfig.profile		= _glfw.hints.profile;
 	ctxconfig.robustness	= _glfw.hints.robustness;
 	ctxconfig.release		= _glfw.hints.release;
+	ctxconfig.share			= NULL;
 
 	// Check the OpenGL bits of the window config
 	if (!_glfwIsValidContextConfig(&ctxconfig))
@@ -770,8 +776,10 @@ GLFWAPI void glfwSetWindowMonitor(GLFWwindow* wh,
         return;
     }
 
-    if (window->iconified)
-        return;
+	// changed 3/10/2015 by Gustav Sterbrant
+	// note: iconified is platform specific now?
+    //if (window->iconified)
+        //return;
 
     window->videoMode.width  = width;
     window->videoMode.height = height;

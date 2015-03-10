@@ -62,6 +62,9 @@ typedef struct _GLFWwndconfig   _GLFWwndconfig;
 typedef struct _GLFWctxconfig   _GLFWctxconfig;
 typedef struct _GLFWfbconfig    _GLFWfbconfig;
 typedef struct _GLFWwindow      _GLFWwindow;
+
+// added 3/10/2015 by Gustav Sterbrant
+// allows us to create a GLFW window from another window system
 typedef struct _GLFWalienWindow _GLFWalienWindow;
 typedef struct _GLFWlibrary     _GLFWlibrary;
 typedef struct _GLFWmonitor     _GLFWmonitor;

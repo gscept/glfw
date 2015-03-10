@@ -1443,6 +1443,8 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
     return GL_TRUE;
 }
 
+// added 3/10/2015 by Gustav Sterbrant
+// allows us to create a GLFW window from another window system
 int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
                                _GLFWalienWindow* alienWindow,
                                const _GLFWwndconfig* wndconfig,
