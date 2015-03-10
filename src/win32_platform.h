@@ -144,6 +144,7 @@ typedef HRESULT (WINAPI * DWMISCOMPOSITIONENABLED_T)(BOOL*);
 #include "winmm_joystick.h"
 
 #define _GLFW_PLATFORM_WINDOW_STATE         _GLFWwindowWin32  win32
+#define _GLFW_PLATFORM_ALIEN_WINDOW_STATE   _GLFWalienWindowWin32   win32
 #define _GLFW_PLATFORM_LIBRARY_WINDOW_STATE _GLFWlibraryWin32 win32
 #define _GLFW_PLATFORM_LIBRARY_TIME_STATE   _GLFWtimeWin32    win32_time
 #define _GLFW_PLATFORM_MONITOR_STATE        _GLFWmonitorWin32 win32
@@ -166,6 +167,14 @@ typedef struct _GLFWwindowWin32
 
 } _GLFWwindowWin32;
 
+// Win32-specific per-window alien data
+//
+typedef struct _GLFWalienWindowWin32
+{
+	// Platform specific window resources
+	HWND hwnd;
+
+} _GLFWalienWindowWin32;
 
 // Win32-specific global data
 //

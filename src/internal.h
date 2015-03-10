@@ -62,6 +62,7 @@ typedef struct _GLFWwndconfig   _GLFWwndconfig;
 typedef struct _GLFWctxconfig   _GLFWctxconfig;
 typedef struct _GLFWfbconfig    _GLFWfbconfig;
 typedef struct _GLFWwindow      _GLFWwindow;
+typedef struct _GLFWalienWindow _GLFWalienWindow;
 typedef struct _GLFWlibrary     _GLFWlibrary;
 typedef struct _GLFWmonitor     _GLFWmonitor;
 typedef struct _GLFWcursor      _GLFWcursor;
@@ -273,6 +274,16 @@ struct _GLFWwindow
     _GLFW_PLATFORM_WINDOW_STATE;
     // This is defined in the context API's context.h
     _GLFW_PLATFORM_CONTEXT_STATE;
+};
+
+/*! @brief Alien window
+*/
+struct _GLFWalienWindow
+{
+	int           width;
+	int           height;
+
+	_GLFW_PLATFORM_ALIEN_WINDOW_STATE;
 };
 
 
@@ -514,6 +525,15 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
                               const _GLFWwndconfig* wndconfig,
                               const _GLFWctxconfig* ctxconfig,
                               const _GLFWfbconfig* fbconfig);
+
+
+/*! @ingroup platform
+*/
+int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
+									   _GLFWalienWindow* alienWindow,
+									   const _GLFWwndconfig* wndconfig,
+									   const _GLFWctxconfig* ctxconfig,
+									   const _GLFWfbconfig* fbconfig);
 
 /*! @ingroup platform
  */

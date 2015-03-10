@@ -1443,6 +1443,23 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
     return GL_TRUE;
 }
 
+int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
+                               _GLFWalienWindow* alienWindow,
+                               const _GLFWwndconfig* wndconfig,
+                               const _GLFWfbconfig* fbconfig)
+{
+    // just copy color map and window handle
+    if (!_glfwPlatformCreateWindow(window, wndconfig, fbconfig))
+    {
+        return GL_FALSE;
+    }
+
+    // simply reparent and we should be fine!
+    XReparentWindow(_glfw.x11.display, window->x11.handle, alienWindow->x11.handle, 0, 0);
+    XResizeWindow(_glfw.x11.display, window->x11.handle, alienWindow->width, alienWindow->height);
+    return GL_TRUE;
+}
+
 void _glfwPlatformDestroyWindow(_GLFWwindow* window)
 {
     if (window->monitor)

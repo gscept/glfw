@@ -797,12 +797,12 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
                               const _GLFWctxconfig* ctxconfig,
                               const _GLFWfbconfig* fbconfig)
 {
-    int status;
+	int status;
 
     if (!createWindow(window, wndconfig, ctxconfig, fbconfig))
         return GL_FALSE;
 
-    status = _glfwAnalyzeContext(window, ctxconfig, fbconfig);
+	status = _glfwAnalyzeContext(window, ctxconfig, fbconfig);
 
     if (status == _GLFW_RECREATION_IMPOSSIBLE)
         return GL_FALSE;
@@ -854,6 +854,24 @@ void _glfwPlatformDestroyWindow(_GLFWwindow* window)
         leaveFullscreenMode(window);
 
     destroyWindow(window);
+}
+
+int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
+	_GLFWalienWindow* alienWindow,
+	const _GLFWwndconfig* wndconfig,
+	const _GLFWctxconfig* ctxconfig,
+	const _GLFWfbconfig* fbconfig)
+{
+	// just copy color map and window handle
+	if (!_glfwPlatformCreateWindow(window, wndconfig, ctxconfig, fbconfig))
+	{
+		return GL_FALSE;
+	}
+
+	// just copy window handle
+	SetParent(window->win32.handle, alienWindow->win32.hwnd);
+	MoveWindow(window->win32.handle, 0, 0, alienWindow->width, alienWindow->height, FALSE);
+	return GL_TRUE;
 }
 
 void _glfwPlatformSetWindowTitle(_GLFWwindow* window, const char* title)

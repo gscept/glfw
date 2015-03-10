@@ -718,6 +718,14 @@ typedef struct GLFWmonitor GLFWmonitor;
  */
 typedef struct GLFWwindow GLFWwindow;
 
+/*! @brief Opaque alien window.
+*
+*  Opaque window object where the window is owned by an alien system.
+*
+*  @ingroup window
+*/
+typedef struct GLFWalienWindow GLFWalienWindow;
+
 /*! @brief Opaque cursor object.
  *
  *  Opaque cursor object.
@@ -1658,6 +1666,21 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, G
  */
 GLFWAPI void glfwDestroyWindow(GLFWwindow* window);
 
+/*! @brief Creates a GLFW window using an alien window
+*
+*	This is basically the same as glfwCreateWindow, but it will accept an OS-specific
+*	window handle as an argument, and will create a GLFW window from it.
+*	This allows GLFW to create and manage a window created by another window handler.
+*
+*	@param[in] Opaque OS-specific window handle.
+*
+*	@remarks This function must be called from the thread in which the window is created
+*
+*	@ingroup window
+*/
+
+GLFWAPI GLFWwindow* glfwCreateWindowFromAlien(void* window);
+
 /*! @brief Checks the close flag of the specified window.
  *
  *  This function returns the value of the close flag of the specified window.
@@ -1674,6 +1697,7 @@ GLFWAPI void glfwDestroyWindow(GLFWwindow* window);
  *
  *  @ingroup window
  */
+
 GLFWAPI int glfwWindowShouldClose(GLFWwindow* window);
 
 /*! @brief Sets the close flag of the specified window.

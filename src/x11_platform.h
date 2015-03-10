@@ -75,6 +75,7 @@
 #include "xkb_unicode.h"
 
 #define _GLFW_PLATFORM_WINDOW_STATE         _GLFWwindowX11  x11
+#define _GLFW_PLATFORM_ALIEN_WINDOW_STATE   _GLFWalienWindowX11 x11
 #define _GLFW_PLATFORM_LIBRARY_WINDOW_STATE _GLFWlibraryX11 x11
 #define _GLFW_PLATFORM_MONITOR_STATE        _GLFWmonitorX11 x11
 #define _GLFW_PLATFORM_CURSOR_STATE         _GLFWcursorX11  x11
@@ -100,6 +101,19 @@ typedef struct _GLFWwindowX11
     int             warpPosX, warpPosY;
 
 } _GLFWwindowX11;
+
+// X11-specific per-window alien data
+//
+typedef struct _GLFWalienWindowX11
+{
+    // Platform specific window resources
+    Colormap        colormap;          // Window colormap
+    Window          handle;            // Window handle
+    int             screen;
+    Display*        display;
+    XVisualInfo*    visual;
+    
+} _GLFWalienWindowX11;
 
 
 // X11-specific global data
