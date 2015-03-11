@@ -280,6 +280,9 @@ struct _GLFWwindow
 };
 
 /*! @brief Alien window
+*
+*  Added 3/10/2015 by Gustav Sterbrant
+*
 */
 struct _GLFWalienWindow
 {
@@ -531,6 +534,9 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
 
 
 /*! @ingroup platform
+*
+*  Added 3/10/2015 by Gustav Sterbrant
+*
 */
 int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
 									   _GLFWalienWindow* alienWindow,
