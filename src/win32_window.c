@@ -921,8 +921,9 @@ void _glfwPlatformGetWindowPos(_GLFWwindow* window, int* xpos, int* ypos)
 void _glfwPlatformSetWindowPos(_GLFWwindow* window, int xpos, int ypos)
 {
     RECT rect = { xpos, ypos, xpos, ypos };
-    AdjustWindowRectEx(&rect, window->win32.dwStyle,
-                       FALSE, window->win32.dwExStyle);
+	if (!window->decorated)
+		AdjustWindowRectEx(&rect, window->win32.dwStyle,
+			               FALSE, window->win32.dwExStyle);
     SetWindowPos(window->win32.handle, NULL, rect.left, rect.top, 0, 0,
                  SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE);
 }
