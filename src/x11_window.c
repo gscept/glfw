@@ -1446,12 +1446,13 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
 // added 3/10/2015 by Gustav Sterbrant
 // allows us to create a GLFW window from another window system
 int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
-                               _GLFWalienWindow* alienWindow,
+                               _GLFWalienWindow* alienWindow,                               
                                const _GLFWwndconfig* wndconfig,
+                               const _GLFWctxconfig* ctxconfig,
                                const _GLFWfbconfig* fbconfig)
 {
     // just copy color map and window handle
-    if (!_glfwPlatformCreateWindow(window, wndconfig, fbconfig))
+    if (!_glfwPlatformCreateWindow(window, wndconfig, ctxconfig, fbconfig))
     {
         return GL_FALSE;
     }
