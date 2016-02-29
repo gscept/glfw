@@ -28,6 +28,7 @@
 //
 //========================================================================
 
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <stdio.h>
@@ -40,7 +41,7 @@
 
 typedef struct Joystick
 {
-    GLboolean present;
+    int present;
     char* name;
     float* axes;
     unsigned char* buttons;
@@ -176,7 +177,7 @@ static void refresh_joysticks(void)
                 joystick_count++;
             }
 
-            j->present = GL_TRUE;
+            j->present = GLFW_TRUE;
         }
         else
         {
@@ -216,6 +217,7 @@ int main(void)
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     glfwMakeContextCurrent(window);
+    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(1);
 
     while (!glfwWindowShouldClose(window))

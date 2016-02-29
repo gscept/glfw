@@ -1,5 +1,5 @@
 //========================================================================
-// GLFW 3.1 X11 - www.glfw.org
+// GLFW 3.2 X11 - www.glfw.org
 //------------------------------------------------------------------------
 // Copyright (c) 2002-2006 Marcus Geelnard
 // Copyright (c) 2006-2010 Camilla Berglund <elmindreda@elmindreda.org>
@@ -25,12 +25,13 @@
 //
 //========================================================================
 
-#ifndef _x11_platform_h_
-#define _x11_platform_h_
+#ifndef _glfw3_x11_platform_h_
+#define _glfw3_x11_platform_h_
 
 #include <unistd.h>
 #include <signal.h>
 #include <stdint.h>
+#include <dlfcn.h>
 
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -56,23 +57,55 @@
  #include <X11/extensions/xf86vmode.h>
 #endif
 
+typedef XID xcb_window_t;
+typedef XID xcb_visualid_t;
+typedef struct xcb_connection_t xcb_connection_t;
+typedef xcb_connection_t* (* XGETXCBCONNECTION_T)(Display*);
+
+typedef VkFlags VkXlibSurfaceCreateFlagsKHR;
+typedef VkFlags VkXcbSurfaceCreateFlagsKHR;
+
+typedef struct VkXlibSurfaceCreateInfoKHR
+{
+    VkStructureType             sType;
+    const void*                 pNext;
+    VkXlibSurfaceCreateFlagsKHR flags;
+    Display*                    dpy;
+    Window                      window;
+} VkXlibSurfaceCreateInfoKHR;
+
+typedef struct VkXcbSurfaceCreateInfoKHR
+{
+    VkStructureType             sType;
+    const void*                 pNext;
+    VkXcbSurfaceCreateFlagsKHR  flags;
+    xcb_connection_t*           connection;
+    xcb_window_t                window;
+} VkXcbSurfaceCreateInfoKHR;
+
+typedef VkResult (APIENTRY *PFN_vkCreateXlibSurfaceKHR)(VkInstance,const VkXlibSurfaceCreateInfoKHR*,const VkAllocationCallbacks*,VkSurfaceKHR*);
+typedef VkBool32 (APIENTRY *PFN_vkGetPhysicalDeviceXlibPresentationSupportKHR)(VkPhysicalDevice,uint32_t,Display*,VisualID);
+typedef VkResult (APIENTRY *PFN_vkCreateXcbSurfaceKHR)(VkInstance,const VkXcbSurfaceCreateInfoKHR*,const VkAllocationCallbacks*,VkSurfaceKHR*);
+typedef VkBool32 (APIENTRY *PFN_vkGetPhysicalDeviceXcbPresentationSupportKHR)(VkPhysicalDevice,uint32_t,xcb_connection_t*,xcb_visualid_t);
+
 #include "posix_tls.h"
+#include "posix_time.h"
+#include "linux_joystick.h"
+#include "xkb_unicode.h"
 
 #if defined(_GLFW_GLX)
- #define _GLFW_X11_CONTEXT_VISUAL window->glx.visual
  #include "glx_context.h"
 #elif defined(_GLFW_EGL)
- #define _GLFW_X11_CONTEXT_VISUAL window->egl.visual
- #define _GLFW_EGL_NATIVE_WINDOW  window->x11.handle
- #define _GLFW_EGL_NATIVE_DISPLAY _glfw.x11.display
+ #define _GLFW_EGL_NATIVE_WINDOW  ((EGLNativeWindowType) window->x11.handle)
+ #define _GLFW_EGL_NATIVE_DISPLAY ((EGLNativeDisplayType) _glfw.x11.display)
  #include "egl_context.h"
 #else
  #error "No supported context creation API selected"
 #endif
 
-#include "posix_time.h"
-#include "linux_joystick.h"
-#include "xkb_unicode.h"
+#define _glfw_dlopen(name) dlopen(name, RTLD_LAZY | RTLD_LOCAL)
+#define _glfw_dlclose(handle) dlclose(handle)
+#define _glfw_dlsym(handle, name) dlsym(handle, name)
 
 #define _GLFW_PLATFORM_WINDOW_STATE         _GLFWwindowX11  x11
 #define _GLFW_PLATFORM_ALIEN_WINDOW_STATE   _GLFWalienWindowX11 x11
@@ -89,8 +122,6 @@ typedef struct _GLFWwindowX11
     Window          handle;
     XIC             ic;
 
-    GLboolean       overrideRedirect;
-
     // Cached position and size used to filter out duplicate events
     int             width, height;
     int             xpos, ypos;
@@ -99,6 +130,12 @@ typedef struct _GLFWwindowX11
     double          cursorPosX, cursorPosY;
     // The last position the cursor was warped to by GLFW
     int             warpPosX, warpPosY;
+
+    // The information from the last KeyPress event
+    struct {
+        unsigned int keycode;
+        Time         time;
+    } last;
 
 } _GLFWwindowX11;
 
@@ -130,14 +167,16 @@ typedef struct _GLFWlibraryX11
     XContext        context;
     // XIM input method
     XIM             im;
-    // True if window manager supports EWMH
-    GLboolean       hasEWMH;
     // Most recent error code received by X error handler
     int             errorCode;
     // Clipboard string (while the selection is owned)
     char*           clipboardString;
+    // Key name string
+    char            keyName[64];
     // X11 keycode to GLFW key LUT
     short int       publicKeys[256];
+    // GLFW key to X11 keycode LUT
+    short int       nativeKeys[GLFW_KEY_LAST + 1];
 
     // Window manager atoms
     Atom            WM_PROTOCOLS;
@@ -181,23 +220,23 @@ typedef struct _GLFWlibraryX11
     Atom            GLFW_SELECTION;
 
     struct {
-        GLboolean   available;
+        GLFWbool    available;
         int         eventBase;
         int         errorBase;
-        int         versionMajor;
-        int         versionMinor;
-        GLboolean   gammaBroken;
-        GLboolean   monitorBroken;
+        int         major;
+        int         minor;
+        GLFWbool    gammaBroken;
+        GLFWbool    monitorBroken;
     } randr;
 
     struct {
-        GLboolean   available;
-        GLboolean   detectable;
+        GLFWbool    available;
+        GLFWbool    detectable;
         int         majorOpcode;
         int         eventBase;
         int         errorBase;
-        int         versionMajor;
-        int         versionMinor;
+        int         major;
+        int         minor;
     } xkb;
 
     struct {
@@ -213,25 +252,30 @@ typedef struct _GLFWlibraryX11
     } xdnd;
 
     struct {
-        GLboolean   available;
-        int         versionMajor;
-        int         versionMinor;
+        GLFWbool    available;
+        int         major;
+        int         minor;
     } xinerama;
+
+    struct {
+        void*       handle;
+        XGETXCBCONNECTION_T XGetXCBConnection;
+    } x11xcb;
 
 #if defined(_GLFW_HAS_XINPUT)
     struct {
-        GLboolean   available;
+        GLFWbool    available;
         int         majorOpcode;
         int         eventBase;
         int         errorBase;
-        int         versionMajor;
-        int         versionMinor;
+        int         major;
+        int         minor;
     } xi;
 #endif /*_GLFW_HAS_XINPUT*/
 
 #if defined(_GLFW_HAS_XF86VM)
     struct {
-        GLboolean   available;
+        GLFWbool    available;
         int         eventBase;
         int         errorBase;
     } vidmode;
@@ -264,18 +308,18 @@ typedef struct _GLFWcursorX11
 } _GLFWcursorX11;
 
 
-GLboolean _glfwSetVideoMode(_GLFWmonitor* monitor, const GLFWvidmode* desired);
-void _glfwRestoreVideoMode(_GLFWmonitor* monitor);
+GLFWbool _glfwSetVideoModeX11(_GLFWmonitor* monitor, const GLFWvidmode* desired);
+void _glfwRestoreVideoModeX11(_GLFWmonitor* monitor);
 
-Cursor _glfwCreateCursor(const GLFWimage* image, int xhot, int yhot);
+Cursor _glfwCreateCursorX11(const GLFWimage* image, int xhot, int yhot);
 
-unsigned long _glfwGetWindowProperty(Window window,
-                                     Atom property,
-                                     Atom type,
-                                     unsigned char** value);
+unsigned long _glfwGetWindowPropertyX11(Window window,
+                                        Atom property,
+                                        Atom type,
+                                        unsigned char** value);
 
-void _glfwGrabXErrorHandler(void);
-void _glfwReleaseXErrorHandler(void);
-void _glfwInputXError(int error, const char* message);
+void _glfwGrabErrorHandlerX11(void);
+void _glfwReleaseErrorHandlerX11(void);
+void _glfwInputErrorX11(int error, const char* message);
 
-#endif // _x11_platform_h_
+#endif // _glfw3_x11_platform_h_

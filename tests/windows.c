@@ -27,17 +27,29 @@
 //
 //========================================================================
 
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
-static const char* titles[4] =
+static const char* titles[] =
 {
-    "Foo",
-    "Bar",
-    "Baz",
-    "Quux"
+    "Red",
+    "Green",
+    "Blue",
+    "Yellow"
+};
+
+static const struct
+{
+    float r, g, b;
+} colors[] =
+{
+    { 0.95f, 0.32f, 0.11f },
+    { 0.50f, 0.80f, 0.16f },
+    {   0.f, 0.68f, 0.94f },
+    { 0.98f, 0.74f, 0.04f }
 };
 
 static void error_callback(int error, const char* description)
@@ -47,18 +59,29 @@ static void error_callback(int error, const char* description)
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+    if (action != GLFW_PRESS)
+        return;
+
+    switch (key)
     {
-        int xpos, ypos;
-        glfwGetWindowPos(window, &xpos, &ypos);
-        glfwSetWindowPos(window, xpos, ypos);
+        case GLFW_KEY_SPACE:
+        {
+            int xpos, ypos;
+            glfwGetWindowPos(window, &xpos, &ypos);
+            glfwSetWindowPos(window, xpos, ypos);
+            break;
+        }
+
+        case GLFW_KEY_ESCAPE:
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+            break;
     }
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
     int i;
-    GLboolean running = GL_TRUE;
+    int running = GLFW_TRUE;
     GLFWwindow* windows[4];
 
     glfwSetErrorCallback(error_callback);
@@ -66,7 +89,8 @@ int main(void)
     if (!glfwInit())
         exit(EXIT_FAILURE);
 
-    glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
     for (i = 0;  i < 4;  i++)
     {
@@ -82,10 +106,8 @@ int main(void)
         glfwSetKeyCallback(windows[i], key_callback);
 
         glfwMakeContextCurrent(windows[i]);
-        glClearColor((GLclampf) (i & 1),
-                     (GLclampf) (i >> 1),
-                     i ? 0.f : 1.f,
-                     0.f);
+        gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+        glClearColor(colors[i].r, colors[i].g, colors[i].b, 1.f);
 
         glfwGetWindowFrameSize(windows[i], &left, &top, &right, &bottom);
         glfwSetWindowPos(windows[i],
@@ -105,7 +127,7 @@ int main(void)
             glfwSwapBuffers(windows[i]);
 
             if (glfwWindowShouldClose(windows[i]))
-                running = GL_FALSE;
+                running = GLFW_FALSE;
         }
 
         glfwPollEvents();

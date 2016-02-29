@@ -27,12 +27,19 @@
 //
 //========================================================================
 
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "getopt.h"
+
+#if defined(__APPLE__)
+ #define MODIFIER GLFW_MOD_SUPER
+#else
+ #define MODIFIER GLFW_MOD_CONTROL
+#endif
 
 static void usage(void)
 {
@@ -52,11 +59,11 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     switch (key)
     {
         case GLFW_KEY_ESCAPE:
-            glfwSetWindowShouldClose(window, GL_TRUE);
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
             break;
 
         case GLFW_KEY_V:
-            if (mods == GLFW_MOD_CONTROL)
+            if (mods == MODIFIER)
             {
                 const char* string;
 
@@ -69,7 +76,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
             break;
 
         case GLFW_KEY_C:
-            if (mods == GLFW_MOD_CONTROL)
+            if (mods == MODIFIER)
             {
                 const char* string = "Hello GLFW World!";
                 glfwSetClipboardString(window, string);
@@ -121,6 +128,7 @@ int main(int argc, char** argv)
     }
 
     glfwMakeContextCurrent(window);
+    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
     glfwSwapInterval(1);
 
     glfwSetKeyCallback(window, key_callback);

@@ -1,5 +1,5 @@
 //========================================================================
-// GLFW 3.1 Win32 - www.glfw.org
+// GLFW 3.2 Win32 - www.glfw.org
 //------------------------------------------------------------------------
 // Copyright (c) 2002-2006 Marcus Geelnard
 // Copyright (c) 2006-2010 Camilla Berglund <elmindreda@elmindreda.org>
@@ -25,24 +25,22 @@
 //
 //========================================================================
 
-#ifndef _win32_tls_h_
-#define _win32_tls_h_
-
-#define _GLFW_PLATFORM_LIBRARY_TLS_STATE _GLFWtlsWin32 win32_tls
-
-
-// Win32-specific global TLS data
-//
-typedef struct _GLFWtlsWin32
+// added 3/10/2015 by Gustav Sterbrant
+// allows us to create a GLFW window from another window system
+int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
+                               _GLFWalienWindow* alienWindow,                               
+                               const _GLFWwndconfig* wndconfig,
+                               const _GLFWctxconfig* ctxconfig,
+                               const _GLFWfbconfig* fbconfig)
 {
-    GLboolean       allocated;
-    DWORD           context;
+    // just copy color map and window handle
+    if (!_glfwPlatformCreateWindow(window, wndconfig, ctxconfig, fbconfig))
+    {
+        return GL_FALSE;
+    }
 
-} _GLFWtlsWin32;
-
-
-int _glfwInitTLS(void);
-void _glfwTerminateTLS(void);
-void _glfwSetCurrentContext(_GLFWwindow* context);
-
-#endif // _win32_tls_h_
+    // simply reparent and we should be fine!
+    XReparentWindow(_glfw.x11.display, window->x11.handle, alienWindow->x11.handle, 0, 0);
+    XResizeWindow(_glfw.x11.display, window->x11.handle, alienWindow->width, alienWindow->height);
+    return GL_TRUE;
+}

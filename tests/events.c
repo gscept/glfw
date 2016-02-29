@@ -31,6 +31,7 @@
 //
 //========================================================================
 
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <stdio.h>
@@ -359,12 +360,25 @@ static void scroll_callback(GLFWwindow* window, double x, double y)
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     Slot* slot = glfwGetWindowUserPointer(window);
+    const char* name = glfwGetKeyName(key, scancode);
 
-    printf("%08x to %i at %0.3f: Key 0x%04x Scancode 0x%04x (%s) (with%s) was %s\n",
-           counter++, slot->number, glfwGetTime(), key, scancode,
-           get_key_name(key),
-           get_mods_name(mods),
-           get_action_name(action));
+    if (name)
+    {
+        printf("%08x to %i at %0.3f: Key 0x%04x Scancode 0x%04x (%s) (%s) (with%s) was %s\n",
+               counter++, slot->number, glfwGetTime(), key, scancode,
+               get_key_name(key),
+               name,
+               get_mods_name(mods),
+               get_action_name(action));
+    }
+    else
+    {
+        printf("%08x to %i at %0.3f: Key 0x%04x Scancode 0x%04x (%s) (with%s) was %s\n",
+               counter++, slot->number, glfwGetTime(), key, scancode,
+               get_key_name(key),
+               get_mods_name(mods),
+               get_action_name(action));
+    }
 
     if (action != GLFW_PRESS)
         return;
@@ -454,7 +468,7 @@ static void monitor_callback(GLFWmonitor* monitor, int event)
                x, y,
                widthMM, heightMM);
     }
-    else
+    else if (event == GLFW_DISCONNECTED)
     {
         printf("%08x at %0.3f: Monitor %s was disconnected\n",
                counter++,
@@ -532,7 +546,7 @@ int main(int argc, char** argv)
     {
         char title[128];
 
-        slots[i].closeable = GL_TRUE;
+        slots[i].closeable = GLFW_TRUE;
         slots[i].number = i + 1;
 
         sprintf(title, "Event Linter (Window %i)", slots[i].number);
@@ -578,6 +592,7 @@ int main(int argc, char** argv)
         glfwSetDropCallback(slots[i].window, drop_callback);
 
         glfwMakeContextCurrent(slots[i].window);
+        gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
         glfwSwapInterval(1);
     }
 
