@@ -31,6 +31,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <float.h>
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -109,6 +110,11 @@ void _glfwInputWindowCloseRequest(_GLFWwindow* window)
         window->callbacks.close((GLFWwindow*) window);
 }
 
+void _glfwInputWindowMonitorChange(_GLFWwindow* window, _GLFWmonitor* monitor)
+{
+    window->monitor = monitor;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //////                        GLFW public API                       //////
@@ -125,13 +131,16 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
     _GLFWwindow* window;
     _GLFWwindow* previous;
 
-    assert(title);
+    assert(title != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
 
     if (width <= 0 || height <= 0)
     {
-        _glfwInputError(GLFW_INVALID_VALUE, "Invalid window size");
+        _glfwInputError(GLFW_INVALID_VALUE,
+                        "Invalid window size %ix%i",
+                        width, height);
+
         return NULL;
     }
 
@@ -142,23 +151,15 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
     wndconfig.width   = width;
     wndconfig.height  = height;
     wndconfig.title   = title;
-    wndconfig.monitor = (_GLFWmonitor*) monitor;
     ctxconfig.share   = (_GLFWwindow*) share;
 
     if (ctxconfig.share)
     {
-        if (ctxconfig.share->context.api == GLFW_NO_API)
+        if (ctxconfig.share->context.client == GLFW_NO_API)
         {
             _glfwInputError(GLFW_NO_WINDOW_CONTEXT, NULL);
             return NULL;
         }
-    }
-
-    if (wndconfig.monitor)
-    {
-        wndconfig.resizable = GLFW_TRUE;
-        wndconfig.visible   = GLFW_TRUE;
-        wndconfig.focused   = GLFW_TRUE;
     }
 
     if (!_glfwIsValidContextConfig(&ctxconfig))
@@ -175,49 +176,50 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
     window->videoMode.blueBits    = fbconfig.blueBits;
     window->videoMode.refreshRate = _glfw.hints.refreshRate;
 
-    window->monitor     = wndconfig.monitor;
+    window->monitor     = (_GLFWmonitor*) monitor;
     window->resizable   = wndconfig.resizable;
     window->decorated   = wndconfig.decorated;
     window->autoIconify = wndconfig.autoIconify;
     window->floating    = wndconfig.floating;
     window->cursorMode  = GLFW_CURSOR_NORMAL;
 
+    window->minwidth    = GLFW_DONT_CARE;
+    window->minheight   = GLFW_DONT_CARE;
+    window->maxwidth    = GLFW_DONT_CARE;
+    window->maxheight   = GLFW_DONT_CARE;
+    window->numer       = GLFW_DONT_CARE;
+    window->denom       = GLFW_DONT_CARE;
+
     // Save the currently current context so it can be restored later
     previous = _glfwPlatformGetCurrentContext();
+    if (ctxconfig.client != GLFW_NO_API)
+        glfwMakeContextCurrent(NULL);
 
     // Open the actual window and create its context
     if (!_glfwPlatformCreateWindow(window, &wndconfig, &ctxconfig, &fbconfig))
     {
+        glfwMakeContextCurrent((GLFWwindow*) previous);
         glfwDestroyWindow((GLFWwindow*) window);
-        _glfwPlatformMakeContextCurrent(previous);
         return NULL;
     }
 
-    if (ctxconfig.api != GLFW_NO_API)
+    if (ctxconfig.client != GLFW_NO_API)
     {
-        _glfwPlatformMakeContextCurrent(window);
+        window->context.makeContextCurrent(window);
 
         // Retrieve the actual (as opposed to requested) context attributes
         if (!_glfwRefreshContextAttribs(&ctxconfig))
         {
+            glfwMakeContextCurrent((GLFWwindow*) previous);
             glfwDestroyWindow((GLFWwindow*) window);
-            _glfwPlatformMakeContextCurrent(previous);
-            return NULL;
-        }
-
-        // Verify the context against the requested parameters
-        if (!_glfwIsValidContext(&ctxconfig))
-        {
-            glfwDestroyWindow((GLFWwindow*) window);
-            _glfwPlatformMakeContextCurrent(previous);
             return NULL;
         }
 
         // Restore the previously current context (or NULL)
-        _glfwPlatformMakeContextCurrent(previous);
+        glfwMakeContextCurrent((GLFWwindow*) previous);
     }
 
-    if (wndconfig.monitor)
+    if (window->monitor)
     {
         int width, height;
         _glfwPlatformGetWindowSize(window, &width, &height);
@@ -231,10 +233,9 @@ GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
     {
         if (wndconfig.visible)
         {
+            _glfwPlatformShowWindow(window);
             if (wndconfig.focused)
-                _glfwPlatformShowWindow(window);
-            else
-                _glfwPlatformUnhideWindow(window);
+                _glfwPlatformFocusWindow(window);
         }
     }
 
@@ -248,9 +249,10 @@ void glfwDefaultWindowHints(void)
     memset(&_glfw.hints, 0, sizeof(_glfw.hints));
 
     // The default is OpenGL with minimum version 1.0
-    _glfw.hints.context.api   = GLFW_OPENGL_API;
-    _glfw.hints.context.major = 1;
-    _glfw.hints.context.minor = 0;
+    _glfw.hints.context.client = GLFW_OPENGL_API;
+    _glfw.hints.context.source = GLFW_NATIVE_CONTEXT_API;
+    _glfw.hints.context.major  = 1;
+    _glfw.hints.context.minor  = 0;
 
     // The default is a focused, visible, resizable window with decorations
     _glfw.hints.window.resizable   = GLFW_TRUE;
@@ -339,11 +341,17 @@ GLFWAPI void glfwWindowHint(int hint, int value)
         case GLFW_FLOATING:
             _glfw.hints.window.floating = value ? GLFW_TRUE : GLFW_FALSE;
             break;
+        case GLFW_MAXIMIZED:
+            _glfw.hints.window.maximized = value ? GLFW_TRUE : GLFW_FALSE;
+            break;
         case GLFW_VISIBLE:
             _glfw.hints.window.visible = value ? GLFW_TRUE : GLFW_FALSE;
             break;
         case GLFW_CLIENT_API:
-            _glfw.hints.context.api = value;
+            _glfw.hints.context.client = value;
+            break;
+        case GLFW_CONTEXT_CREATION_API:
+            _glfw.hints.context.source = value;
             break;
         case GLFW_CONTEXT_VERSION_MAJOR:
             _glfw.hints.context.major = value;
@@ -373,7 +381,7 @@ GLFWAPI void glfwWindowHint(int hint, int value)
             _glfw.hints.refreshRate = value;
             break;
         default:
-            _glfwInputError(GLFW_INVALID_ENUM, "Invalid window hint");
+            _glfwInputError(GLFW_INVALID_ENUM, "Invalid window hint %i", hint);
             break;
     }
 }
@@ -394,7 +402,7 @@ GLFWAPI void glfwDestroyWindow(GLFWwindow* handle)
     // The window's context must not be current on another thread when the
     // window is destroyed
     if (window == _glfwPlatformGetCurrentContext())
-        _glfwPlatformMakeContextCurrent(NULL);
+        glfwMakeContextCurrent(NULL);
 
     // Clear the focused window pointer if this is the focused window
     if (_glfw.cursorWindow == window)
@@ -418,7 +426,7 @@ GLFWAPI void glfwDestroyWindow(GLFWwindow* handle)
 GLFWAPI int glfwWindowShouldClose(GLFWwindow* handle)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(0);
     return window->closed;
@@ -427,7 +435,7 @@ GLFWAPI int glfwWindowShouldClose(GLFWwindow* handle)
 GLFWAPI void glfwSetWindowShouldClose(GLFWwindow* handle, int value)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
     window->closed = value;
@@ -436,18 +444,30 @@ GLFWAPI void glfwSetWindowShouldClose(GLFWwindow* handle, int value)
 GLFWAPI void glfwSetWindowTitle(GLFWwindow* handle, const char* title)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
-    assert(title);
+    assert(title != NULL);
 
     _GLFW_REQUIRE_INIT();
     _glfwPlatformSetWindowTitle(window, title);
 }
 
+GLFWAPI void glfwSetWindowIcon(GLFWwindow* handle,
+                               int count, const GLFWimage* images)
+{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+    assert(count >= 0);
+    assert(count == 0 || images != NULL);
+
+    _GLFW_REQUIRE_INIT();
+    _glfwPlatformSetWindowIcon(window, count, images);
+}
+
 GLFWAPI void glfwGetWindowPos(GLFWwindow* handle, int* xpos, int* ypos)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     if (xpos)
         *xpos = 0;
@@ -461,16 +481,12 @@ GLFWAPI void glfwGetWindowPos(GLFWwindow* handle, int* xpos, int* ypos)
 GLFWAPI void glfwSetWindowPos(GLFWwindow* handle, int xpos, int ypos)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
 
     if (window->monitor)
-    {
-        _glfwInputError(GLFW_INVALID_VALUE,
-                        "Full screen windows cannot be moved");
         return;
-    }
 
     _glfwPlatformSetWindowPos(window, xpos, ypos);
 }
@@ -478,7 +494,7 @@ GLFWAPI void glfwSetWindowPos(GLFWwindow* handle, int xpos, int ypos)
 GLFWAPI void glfwGetWindowSize(GLFWwindow* handle, int* width, int* height)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     if (width)
         *width = 0;
@@ -492,15 +508,12 @@ GLFWAPI void glfwGetWindowSize(GLFWwindow* handle, int* width, int* height)
 GLFWAPI void glfwSetWindowSize(GLFWwindow* handle, int width, int height)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
 
-    if (window->monitor)
-    {
-        window->videoMode.width  = width;
-        window->videoMode.height = height;
-    }
+    window->videoMode.width  = width;
+    window->videoMode.height = height;
 
     _glfwPlatformSetWindowSize(window, width, height);
 }
@@ -510,9 +523,21 @@ GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* handle,
                                      int maxwidth, int maxheight)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
+
+    if (minwidth < 0 || minheight < 0 ||
+        maxwidth < minwidth || maxheight < minheight)
+    {
+        _glfwInputError(GLFW_INVALID_VALUE, "Invalid window size limits");
+        return;
+    }
+
+    window->minwidth  = minwidth;
+    window->minheight = minheight;
+    window->maxwidth  = maxwidth;
+    window->maxheight = maxheight;
 
     if (window->monitor || !window->resizable)
         return;
@@ -525,18 +550,21 @@ GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* handle,
 GLFWAPI void glfwSetWindowAspectRatio(GLFWwindow* handle, int numer, int denom)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
 
-    if (window->monitor || !window->resizable)
-        return;
-
-    if (!denom)
+    if (numer <= 0 || denom <= 0)
     {
-        _glfwInputError(GLFW_INVALID_VALUE, "Denominator cannot be zero");
+        _glfwInputError(GLFW_INVALID_VALUE, "Invalid window aspect ratio");
         return;
     }
+
+    window->numer = numer;
+    window->denom = denom;
+
+    if (window->monitor || !window->resizable)
+        return;
 
     _glfwPlatformSetWindowAspectRatio(window, numer, denom);
 }
@@ -560,7 +588,7 @@ GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* handle,
                                     int* right, int* bottom)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     if (left)
         *left = 0;
@@ -578,7 +606,7 @@ GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* handle,
 GLFWAPI void glfwIconifyWindow(GLFWwindow* handle)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
     _glfwPlatformIconifyWindow(window);
@@ -587,16 +615,23 @@ GLFWAPI void glfwIconifyWindow(GLFWwindow* handle)
 GLFWAPI void glfwRestoreWindow(GLFWwindow* handle)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
     _glfwPlatformRestoreWindow(window);
 }
 
+GLFWAPI void glfwMaximizeWindow(GLFWwindow* handle)
+{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    _GLFW_REQUIRE_INIT();
+    _glfwPlatformMaximizeWindow(window);
+}
+
 GLFWAPI void glfwShowWindow(GLFWwindow* handle)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
 
@@ -604,12 +639,13 @@ GLFWAPI void glfwShowWindow(GLFWwindow* handle)
         return;
 
     _glfwPlatformShowWindow(window);
+    _glfwPlatformFocusWindow(window);
 }
 
 GLFWAPI void glfwHideWindow(GLFWwindow* handle)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
 
@@ -619,10 +655,20 @@ GLFWAPI void glfwHideWindow(GLFWwindow* handle)
     _glfwPlatformHideWindow(window);
 }
 
+GLFWAPI void glfwFocusWindow(GLFWwindow* handle)
+{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+
+    _GLFW_REQUIRE_INIT();
+
+    _glfwPlatformFocusWindow(window);
+}
+
 GLFWAPI int glfwGetWindowAttrib(GLFWwindow* handle, int attrib)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(0);
 
@@ -634,6 +680,8 @@ GLFWAPI int glfwGetWindowAttrib(GLFWwindow* handle, int attrib)
             return _glfwPlatformWindowIconified(window);
         case GLFW_VISIBLE:
             return _glfwPlatformWindowVisible(window);
+        case GLFW_MAXIMIZED:
+            return _glfwPlatformWindowMaximized(window);
         case GLFW_RESIZABLE:
             return window->resizable;
         case GLFW_DECORATED:
@@ -641,7 +689,9 @@ GLFWAPI int glfwGetWindowAttrib(GLFWwindow* handle, int attrib)
         case GLFW_FLOATING:
             return window->floating;
         case GLFW_CLIENT_API:
-            return window->context.api;
+            return window->context.client;
+        case GLFW_CONTEXT_CREATION_API:
+            return window->context.source;
         case GLFW_CONTEXT_VERSION_MAJOR:
             return window->context.major;
         case GLFW_CONTEXT_VERSION_MINOR:
@@ -662,23 +712,44 @@ GLFWAPI int glfwGetWindowAttrib(GLFWwindow* handle, int attrib)
             return window->context.noerror;
     }
 
-    _glfwInputError(GLFW_INVALID_ENUM, "Invalid window attribute");
+    _glfwInputError(GLFW_INVALID_ENUM, "Invalid window attribute %i", attrib);
     return 0;
 }
 
 GLFWAPI GLFWmonitor* glfwGetWindowMonitor(GLFWwindow* handle)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     return (GLFWmonitor*) window->monitor;
 }
 
+GLFWAPI void glfwSetWindowMonitor(GLFWwindow* wh,
+                                  GLFWmonitor* mh,
+                                  int xpos, int ypos,
+                                  int width, int height,
+                                  int refreshRate)
+{
+    _GLFWwindow* window = (_GLFWwindow*) wh;
+    _GLFWmonitor* monitor = (_GLFWmonitor*) mh;
+    assert(window);
+
+    _GLFW_REQUIRE_INIT();
+
+    window->videoMode.width       = width;
+    window->videoMode.height      = height;
+    window->videoMode.refreshRate = refreshRate;
+
+    _glfwPlatformSetWindowMonitor(window, monitor,
+                                  xpos, ypos, width, height,
+                                  refreshRate);
+}
+
 GLFWAPI void glfwSetWindowUserPointer(GLFWwindow* handle, void* pointer)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT();
     window->userPointer = pointer;
@@ -687,7 +758,7 @@ GLFWAPI void glfwSetWindowUserPointer(GLFWwindow* handle, void* pointer)
 GLFWAPI void* glfwGetWindowUserPointer(GLFWwindow* handle)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     return window->userPointer;
@@ -697,7 +768,7 @@ GLFWAPI GLFWwindowposfun glfwSetWindowPosCallback(GLFWwindow* handle,
                                                   GLFWwindowposfun cbfun)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP_POINTERS(window->callbacks.pos, cbfun);
@@ -708,7 +779,7 @@ GLFWAPI GLFWwindowsizefun glfwSetWindowSizeCallback(GLFWwindow* handle,
                                                     GLFWwindowsizefun cbfun)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP_POINTERS(window->callbacks.size, cbfun);
@@ -719,7 +790,7 @@ GLFWAPI GLFWwindowclosefun glfwSetWindowCloseCallback(GLFWwindow* handle,
                                                       GLFWwindowclosefun cbfun)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP_POINTERS(window->callbacks.close, cbfun);
@@ -730,7 +801,7 @@ GLFWAPI GLFWwindowrefreshfun glfwSetWindowRefreshCallback(GLFWwindow* handle,
                                                           GLFWwindowrefreshfun cbfun)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP_POINTERS(window->callbacks.refresh, cbfun);
@@ -741,7 +812,7 @@ GLFWAPI GLFWwindowfocusfun glfwSetWindowFocusCallback(GLFWwindow* handle,
                                                       GLFWwindowfocusfun cbfun)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP_POINTERS(window->callbacks.focus, cbfun);
@@ -752,7 +823,7 @@ GLFWAPI GLFWwindowiconifyfun glfwSetWindowIconifyCallback(GLFWwindow* handle,
                                                           GLFWwindowiconifyfun cbfun)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP_POINTERS(window->callbacks.iconify, cbfun);
@@ -763,7 +834,7 @@ GLFWAPI GLFWframebuffersizefun glfwSetFramebufferSizeCallback(GLFWwindow* handle
                                                               GLFWframebuffersizefun cbfun)
 {
     _GLFWwindow* window = (_GLFWwindow*) handle;
-    assert(window);
+    assert(window != NULL);
 
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP_POINTERS(window->callbacks.fbsize, cbfun);
@@ -784,6 +855,19 @@ GLFWAPI void glfwWaitEvents(void)
         return;
 
     _glfwPlatformWaitEvents();
+}
+
+GLFWAPI void glfwWaitEventsTimeout(double timeout)
+{
+    _GLFW_REQUIRE_INIT();
+
+    if (timeout != timeout || timeout < 0.0 || timeout > DBL_MAX)
+    {
+        _glfwInputError(GLFW_INVALID_VALUE, "Invalid time %f", timeout);
+        return;
+    }
+
+    _glfwPlatformWaitEventsTimeout(timeout);
 }
 
 GLFWAPI void glfwPostEmptyEvent(void)
