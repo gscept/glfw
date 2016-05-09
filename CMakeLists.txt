@@ -58,21 +58,6 @@ else()
 endif()
 
 set(CMAKE_MODULE_PATH "${GLFW_SOURCE_DIR}/CMake/modules")
-if (BUILD_SHARED_LIBS AND UNIX)
-    # On Unix-like systems, shared libraries can use the soname system.
-    set(GLFW_LIB_NAME glfw)
-else()
-    set(GLFW_LIB_NAME glfw3)
-endif()
-
-if (GLFW_USE_WAYLAND)
-
-    set(GLFW_USE_EGL ON)
-elseif (GLFW_USE_MIR)
-    set(GLFW_USE_EGL ON)
-endif()
-
-set(CMAKE_MODULE_PATH "${GLFW_SOURCE_DIR}/CMake/modules")
 
 find_package(Threads REQUIRED)
 find_package(Vulkan)
@@ -355,14 +340,6 @@ configure_package_config_file(src/glfw3Config.cmake.in
 write_basic_package_version_file(src/glfw3ConfigVersion.cmake
                                  VERSION ${GLFW_VERSION_FULL}
                                  COMPATIBILITY SameMajorVersion)
-
-if (GLFW_BUILD_DOCS)
-    configure_file(docs/Doxyfile.in docs/Doxyfile @ONLY)
-endif()
-configure_file(src/glfw_config.h.in src/glfw_config.h @ONLY)
-
-configure_file(src/glfw3.pc.in src/glfw3.pc @ONLY)
-
 
 configure_file(src/glfw_config.h.in src/glfw_config.h @ONLY)
 
