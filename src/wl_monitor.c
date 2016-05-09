@@ -244,13 +244,27 @@ void _glfwPlatformGetVideoMode(_GLFWmonitor* monitor, GLFWvidmode* mode)
 void _glfwPlatformGetGammaRamp(_GLFWmonitor* monitor, GLFWgammaramp* ramp)
 {
     // TODO
-    fprintf(stderr, "_glfwPlatformGetGammaRamp not implemented yet\n");
+    _glfwInputError(GLFW_PLATFORM_ERROR,
+                    "Wayland: Gamma ramp getting not supported yet");
 }
 
 void _glfwPlatformSetGammaRamp(_GLFWmonitor* monitor, const GLFWgammaramp* ramp)
 {
     // TODO
-    fprintf(stderr, "_glfwPlatformSetGammaRamp not implemented yet\n");
+    _glfwInputError(GLFW_PLATFORM_ERROR,
+                    "Wayland: Gamma ramp setting not supported yet");
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW native API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI struct wl_output* glfwGetWaylandMonitor(GLFWmonitor* handle)
+{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return monitor->wl.output;
 }
 
 
