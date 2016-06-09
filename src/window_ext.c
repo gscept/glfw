@@ -35,7 +35,7 @@
 
 // added 3/10/2015 by Gustav Sterbrant
 // allows us to create a GLFW window from another window system
-GLFWwindow* glfwCreateWindowFromAlien(void* data)
+GLFWwindow* glfwCreateWindowFromAlien(void* data, GLFWwindow* share)
 {
 	_GLFWalienWindow* alienWindow = (_GLFWalienWindow*)data;
 
@@ -88,7 +88,7 @@ GLFWwindow* glfwCreateWindowFromAlien(void* data)
 	ctxconfig.profile		= _glfw.hints.context.profile;
 	ctxconfig.robustness	= _glfw.hints.context.robustness;
 	ctxconfig.release		= _glfw.hints.context.release;
-	ctxconfig.share			= NULL;
+	ctxconfig.share			= (_GLFWwindow*)share;
 
 	// Check the OpenGL bits of the window config
 	if (!_glfwIsValidContextConfig(&ctxconfig))

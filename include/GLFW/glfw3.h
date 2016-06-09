@@ -1858,7 +1858,7 @@ GLFWAPI void glfwDestroyWindow(GLFWwindow* window);
 *	@ingroup window
 */
 
-GLFWAPI GLFWwindow* glfwCreateWindowFromAlien(void* window);
+GLFWAPI GLFWwindow* glfwCreateWindowFromAlien(void* window, GLFWwindow* share);
 
 /*! @brief Checks the close flag of the specified window.
  *
