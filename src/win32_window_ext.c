@@ -192,3 +192,15 @@ void _glfwPlatformSetWindowMonitor(_GLFWwindow* window,
 			SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
 	}
 }
+
+// reparent context from one window to another, and destroy the old context
+void _glfwPlatformReparentContext(_GLFWwindow* from, _GLFWwindow* to)
+{
+	HDC dc = to->context.wgl.dc;
+	HGLRC rc = to->context.wgl.handle;
+	to->context = from->context;
+	to->context.wgl.dc = dc;
+
+	// destroy old RC
+	wglDeleteContext(rc);
+}

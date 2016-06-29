@@ -644,6 +644,10 @@ int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
 									   const _GLFWfbconfig* fbconfig);
 
 /*! @ingroup platform
+*/
+void _glfwPlatformReparentContext(_GLFWwindow* from, _GLFWwindow* to);
+
+/*! @ingroup platform
  */
 void _glfwPlatformDestroyWindow(_GLFWwindow* window);
 

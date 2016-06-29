@@ -35,7 +35,8 @@
 
 // added 3/10/2015 by Gustav Sterbrant
 // allows us to create a GLFW window from another window system
-GLFWwindow* glfwCreateWindowFromAlien(void* data, GLFWwindow* share)
+GLFWAPI GLFWwindow*
+glfwCreateWindowFromAlien(void* data, GLFWwindow* share)
 {
 	_GLFWalienWindow* alienWindow = (_GLFWalienWindow*)data;
 
@@ -178,7 +179,8 @@ GLFWwindow* glfwCreateWindowFromAlien(void* data, GLFWwindow* share)
 
 
 // Merged from branch SetWindowMonitor
-GLFWAPI void glfwSetWindowMonitor(GLFWwindow* wh,
+GLFWAPI void
+glfwSetWindowMonitor(GLFWwindow* wh,
 	GLFWmonitor* mh,
 	int width, int height)
 {
@@ -201,4 +203,18 @@ GLFWAPI void glfwSetWindowMonitor(GLFWwindow* wh,
 	window->videoMode.height = height;
 
 	_glfwPlatformSetWindowMonitor(window, monitor, width, height);
+}
+
+
+// added 22/06/2016 by Gustav Sterbrant
+// reparent context from one window to another, this allows the same context to be used for several windows
+GLFWAPI void
+glfwReparentContext(GLFWwindow* from, GLFWwindow* to)
+{
+	_GLFWwindow* toWnd		= (_GLFWwindow*)to;
+	_GLFWwindow* fromWnd	= (_GLFWwindow*)from;
+	_GLFW_REQUIRE_INIT();
+
+	//toWnd->context.api = fromWnd->context.api;
+	_glfwPlatformReparentContext(fromWnd, toWnd);
 }
