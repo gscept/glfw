@@ -391,7 +391,6 @@ struct _GLFWwindow
     _GLFW_PLATFORM_WINDOW_STATE;
 };
 
-
 /*! @brief Monitor structure.
  */
 struct _GLFWmonitor

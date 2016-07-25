@@ -27,6 +27,7 @@
 //========================================================================
 
 #include "internal.h"
+#include "internal_ext.h"
 
 #include <assert.h>
 #include <string.h>
@@ -77,10 +78,10 @@ GLFWwindow* glfwCreateWindowFromAlien(void* data)
 	wndconfig.resizable		= GLFW_TRUE;
 	wndconfig.visible		= _glfw.hints.window.visible ? GLFW_TRUE : GLFW_FALSE;
 	wndconfig.decorated		= GLFW_FALSE;
-	wndconfig.monitor		= NULL;
 
 	// Set up desired context config
-	ctxconfig.api			= _glfw.hints.context.api;
+	ctxconfig.client		= _glfw.hints.context.client;
+	ctxconfig.source		= _glfw.hints.context.source;
 	ctxconfig.major			= _glfw.hints.context.major;
 	ctxconfig.minor			= _glfw.hints.context.minor;
 	ctxconfig.forward		= _glfw.hints.context.forward ? GLFW_TRUE : GLFW_FALSE;
@@ -98,21 +99,7 @@ GLFWwindow* glfwCreateWindowFromAlien(void* data)
 	window->next = _glfw.windowListHead;
 	_glfw.windowListHead = window;
 
-	if (wndconfig.monitor)
-	{
-		wndconfig.resizable = GLFW_TRUE;
-		wndconfig.visible = GLFW_TRUE;
-
-		// Set up desired video mode
-		window->videoMode.width			= alienWindow->width;
-		window->videoMode.height		= alienWindow->height;
-		window->videoMode.redBits		= _glfw.hints.framebuffer.redBits;
-		window->videoMode.greenBits		= _glfw.hints.framebuffer.greenBits;
-		window->videoMode.blueBits		= _glfw.hints.framebuffer.blueBits;
-		window->videoMode.refreshRate	= _glfw.hints.refreshRate;
-	}
-
-	window->monitor = wndconfig.monitor;
+	window->monitor = NULL;
 	window->resizable = wndconfig.resizable;
 	window->decorated = wndconfig.decorated;
 	window->cursorMode = GLFW_CURSOR_NORMAL;
@@ -128,77 +115,28 @@ GLFWwindow* glfwCreateWindowFromAlien(void* data)
 		return NULL;
 	}
 
-	if (ctxconfig.api != GLFW_NO_API)
+	if (ctxconfig.client != GLFW_NO_API)
     {
-		_glfwPlatformMakeContextCurrent(window);
+		glfwMakeContextCurrent((GLFWwindow*)window);
 
 		// Retrieve the actual (as opposed to requested) context attributes
 		if (!_glfwRefreshContextAttribs(&ctxconfig))
 		{
 			glfwDestroyWindow((GLFWwindow*)window);
-			_glfwPlatformMakeContextCurrent(previous);
+			glfwMakeContextCurrent((GLFWwindow*)previous);
 			return NULL;
 		}
-
-		// Verify the context against the requested parameters
-		if (!_glfwIsValidContext(&ctxconfig))
-		{
-			glfwDestroyWindow((GLFWwindow*)window);
-			_glfwPlatformMakeContextCurrent(previous);
-			return NULL;
-		}
-		
-		// Restore the previously current context (or NULL)
-		_glfwPlatformMakeContextCurrent(previous);
+	
+		glfwMakeContextCurrent((GLFWwindow*)previous);
 	}
 
-	if (wndconfig.monitor)
+	if (wndconfig.visible)
 	{
-		int width, height;
-		_glfwPlatformGetWindowSize(window, &width, &height);
-
-		window->cursorPosX = width / 2;
-		window->cursorPosY = height / 2;
-
-		_glfwPlatformSetCursorPos(window, window->cursorPosX, window->cursorPosY);
-	}
-	else
-	{
-		if (wndconfig.visible)
-		{
-			if (wndconfig.focused)
-				_glfwPlatformShowWindow(window);
-			else
-				_glfwPlatformUnhideWindow(window);
-		}
+		if (wndconfig.focused)
+			_glfwPlatformShowWindow(window);
+		else
+			_glfwPlatformFocusWindow(window);
 	}
 
 	return (GLFWwindow*)window;
-}
-
-
-// Merged from branch SetWindowMonitor
-GLFWAPI void glfwSetWindowMonitor(GLFWwindow* wh,
-	GLFWmonitor* mh,
-	int width, int height)
-{
-	_GLFWwindow* window = (_GLFWwindow*)wh;
-	_GLFWmonitor* monitor = (_GLFWmonitor*)mh;
-	_GLFW_REQUIRE_INIT();
-
-	if (window->monitor == monitor)
-	{
-		glfwSetWindowSize(wh, width, height);
-		return;
-	}
-
-	// changed 3/10/2015 by Gustav Sterbrant
-	// note: iconified is platform specific now?
-	//if (window->iconified)
-	//return;
-
-	window->videoMode.width = width;
-	window->videoMode.height = height;
-
-	_glfwPlatformSetWindowMonitor(window, monitor, width, height);
 }

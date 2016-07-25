@@ -26,6 +26,7 @@
 //========================================================================
 
 #include "internal.h"
+#include "internal_ext.h"
 
 #include <windowsx.h>
 #include <shellapi.h>
@@ -143,52 +144,5 @@ void _glfwRestoreVideoMode(_GLFWmonitor* monitor)
 		ChangeDisplaySettingsExW(monitor->win32.adapterName,
 			NULL, NULL, CDS_FULLSCREEN, NULL);
 		monitor->win32.modeChanged = GLFW_FALSE;
-	}
-}
-
-// Merged from branch SetWindowMonitor
-void _glfwPlatformSetWindowMonitor(_GLFWwindow* window,
-	_GLFWmonitor* monitor,
-	int width, int height)
-{
-	if (window->monitor)
-		_glfwRestoreVideoMode(window->monitor);
-
-	_glfwInputWindowMonitorChange(window, monitor);
-
-	// Update window styles
-	{
-		_GLFWwndconfig wndconfig;
-		wndconfig.resizable = window->resizable;
-		wndconfig.decorated = window->decorated;
-		wndconfig.monitor = monitor;
-
-		SetWindowLongPtr(window->win32.handle,
-			GWL_STYLE, getWindowStyle(window) | WS_VISIBLE);
-		SetWindowLongPtr(window->win32.handle,
-			GWL_EXSTYLE, getWindowExStyle(window));
-	}
-
-	if (window->monitor)
-	{
-		GLFWvidmode mode;
-		int xpos, ypos;
-
-		_glfwSetVideoMode(window->monitor, &window->videoMode);
-		_glfwPlatformGetVideoMode(window->monitor, &mode);
-		_glfwPlatformGetMonitorPos(window->monitor, &xpos, &ypos);
-
-		SetWindowPos(window->win32.handle, HWND_TOPMOST,
-			xpos, ypos, mode.width, mode.height,
-			SWP_FRAMECHANGED);
-	}
-	else
-	{
-		int fullWidth, fullHeight;
-		getFullWindowSize(window, width, height, &fullWidth, &fullHeight);
-
-		SetWindowPos(window->win32.handle, HWND_TOPMOST,
-			0, 0, fullWidth, fullHeight,
-			SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
 	}
 }
