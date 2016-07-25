@@ -44,3 +44,16 @@ int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
     XResizeWindow(_glfw.x11.display, window->x11.handle, alienWindow->width, alienWindow->height);
     return GL_TRUE;
 }
+
+
+// reparent context from one window to another, and destroy the old context
+void _glfwPlatformReparentContext(_GLFWwindow* from, _GLFWwindow* to)
+{
+	GLXWindow wnd = to->context.x11.window;
+	GLXContext rc = to->context.x11.handle;
+	to->context = from->context;
+	to->context.x11.window = wnd;
+
+	// destroy old RC
+	glXDestroyContext(_glfw.x11.display, rc);
+}

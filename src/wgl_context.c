@@ -438,8 +438,6 @@ GLFWbool _glfwCreateContextWGL(_GLFWwindow* window,
     PIXELFORMATDESCRIPTOR pfd;
     HGLRC share = NULL;
 
-    if (ctxconfig->client == GLFW_NO_API)
-        return GLFW_TRUE;
 
     if (ctxconfig->share)
         share = ctxconfig->share->context.wgl.handle;

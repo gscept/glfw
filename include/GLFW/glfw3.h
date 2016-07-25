@@ -1880,7 +1880,26 @@ GLFWAPI void glfwDestroyWindow(GLFWwindow* window);
 *	@ingroup window
 */
 
-GLFWAPI GLFWwindow* glfwCreateWindowFromAlien(void* window);
+GLFWAPI GLFWwindow* glfwCreateWindowFromAlien(void* window, GLFWwindow* share);
+
+/*! @brief Sets the window context from one to another
+*
+*   Added 22/06/2016 by Gustav Sterbrant
+*
+*	Alternative to window sharing, this copies the DC from one window to another, but doesn't destroy it.
+*	This will allow the same context to be used for another window, 
+*	although MakeCurrent is effectively going to overtake that window and use it.
+*	Use GLFW_NO_API on the window to which you want to copy.
+*
+*	@param[in] Opaque OS-specific window handle.
+*	@param[in] Opaque OS-specific window handle.
+*
+*	@remarks This function must be called from the thread in which the window is created
+*
+*	@ingroup window
+*/
+
+GLFWAPI void glfwReparentContext(GLFWwindow* from, GLFWwindow* to);
 
 /*! @brief Checks the close flag of the specified window.
  *

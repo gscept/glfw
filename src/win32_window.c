@@ -993,6 +993,14 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
                 return GLFW_FALSE;
         }
     }
+	else
+	{
+		if (ctxconfig->share)
+		{
+			window->context = ctxconfig->share->context;
+			window->context.wgl.dc = GetDC(window->win32.handle);
+		}
+	}
 
     if (window->monitor)
     {
