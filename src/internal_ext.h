@@ -1,6 +1,6 @@
 #ifndef _glfw3_internal_ext_h_
 #define _glfw3_internal_ext_h_
-
+#if 0
 // added 3/10/2015 by Gustav Sterbrant
 // allows us to create a GLFW window from another window system
 typedef struct _GLFWalienWindow _GLFWalienWindow;
@@ -28,5 +28,5 @@ int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
 	const _GLFWwndconfig* wndconfig,
 	const _GLFWctxconfig* ctxconfig,
 	const _GLFWfbconfig* fbconfig);
-
+#endif
 #endif // _glfw3_internal_ext_h_

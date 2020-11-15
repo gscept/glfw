@@ -29,6 +29,7 @@
 #include "internal_ext.h"
 #include <GL/gl.h>
 
+#if 0
 // added 3/10/2015 by Gustav Sterbrant
 // allows us to create a GLFW window from another window system
 int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
@@ -48,7 +49,7 @@ int _glfwPlatformCreateWindowFromAlien(_GLFWwindow* window,
     XResizeWindow(_glfw.x11.display, window->x11.handle, alienWindow->width, alienWindow->height);
     return GL_TRUE;
 }
-
+#endif
 
 // reparent context from one window to another, and destroy the old context
 void _glfwPlatformReparentContext(_GLFWwindow* from, _GLFWwindow* to)
